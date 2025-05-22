@@ -1,31 +1,24 @@
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException
 from database import database as connection, User, Movie, UserReview
-from schemas import UserRequestModel, UserResponseModel
+from schemas import UserRequestModel, ReviewRequestModel, MovieRequestModel
+from schemas import UserResponseModel, ReviewResponseModel, MovieResponseModel
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Código que se ejecuta al iniciar
     if connection.is_closed():
         connection.connect
 
-    connection.create_tables([User, Movie, UserReview])
     print("Coneccion iniciada")
 
     yield
-    # Código que se ejecuta al apagar
     if not connection.is_closed():
         connection.close
     print("Connecion apagada")
 
 
 app = FastAPI(lifespan=lifespan)
-
-
-@app.get('/')
-async def index():
-    return 'Hello world!'
 
 
 @app.post('/users', response_model=UserResponseModel)
@@ -37,4 +30,33 @@ async def create_user(user: UserRequestModel):
     hash_password = User.create_password(user.password)
     user = User.create(username=user.username, password=hash_password)
 
-    return UserResponseModel(id=user.id, username=user.username)
+    return user
+
+
+@app.post('/movies', response_model=MovieResponseModel)
+async def create_movie(movie: MovieRequestModel):
+
+    if Movie.select().where(Movie.title == movie.title).exists():
+        raise HTTPException(
+            status_code=409,
+            detail='La pelicula ya existe'
+        )
+    
+    movie = Movie.create(title=movie.title)
+
+    return movie
+    # Opción 2 (más explícita y recomendada):
+    # return MovieResponseModel(id=movie.id, title=movie.title)
+    
+
+@app.post('/reviews', response_model=ReviewResponseModel)
+async def create_review(user_review: ReviewRequestModel):
+    
+    user_review = UserReview.create(
+        user_id=user_review.user_id,
+        movie_id=user_review.movie_id,
+        review=user_review.review,
+        score=user_review.score
+    )
+
+    return user_review

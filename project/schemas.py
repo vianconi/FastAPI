@@ -1,5 +1,16 @@
+from typing import Any
 from pydantic import BaseModel, field_validator
 
+
+def custom_getter(obj: Any, field: str) -> Any:
+
+    return getattr(obj, field, None)
+
+class ResponseModel(BaseModel):
+
+    model_config = {
+        'from_attributes': True
+    }
 
 class UserRequestModel(BaseModel):
     username: str
@@ -11,8 +22,34 @@ class UserRequestModel(BaseModel):
             raise ValueError("La longitud minima es 4, y la maxima 50")
 
         return username
-    
 
-class UserResponseModel(BaseModel):
+class UserResponseModel(ResponseModel):
     id: int
     username: str
+
+class MovieRequestModel(BaseModel):
+    title: str
+
+    @field_validator("title")
+    def title_validator(cls, title):
+        if len(title) < 1:
+            raise ValueError("El título no puede estar vacío")
+        if len(title) > 200:
+            raise ValueError("El título es demasiado largo")
+        return title
+
+class MovieResponseModel(ResponseModel):
+    id: int
+    title: str
+
+class ReviewRequestModel(BaseModel):
+    user_id: int
+    movie_id: int
+    review: str
+    score: int
+
+class ReviewResponseModel(ResponseModel):
+    id: int
+    movie_id: int
+    review: str
+    score: int
