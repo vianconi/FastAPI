@@ -2,7 +2,15 @@ from datetime import datetime
 from dotenv import load_dotenv
 import os
 import hashlib
-from peewee import *
+from peewee import (
+    PostgresqlDatabase,
+    Model,
+    CharField,
+    DateTimeField,
+    ForeignKeyField,
+    TextField,
+    IntegerField,
+)
 
 load_dotenv()
 
