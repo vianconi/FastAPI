@@ -51,7 +51,6 @@ class MovieResponseModel(ResponseModel):
 
 
 class ReviewRequestModel(BaseModel, ReviewValidator):
-    user_id: int
     movie_id: int
     review: str
 

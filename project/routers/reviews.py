@@ -1,6 +1,7 @@
 from typing import List
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from fastapi.concurrency import run_in_threadpool
+from project.common import get_current_user
 from project.database import Movie, User, UserReview
 from project.schemas import (
     ReviewRequestModel,
@@ -12,31 +13,20 @@ router = APIRouter(prefix="/reviews")
 
 
 @router.post("/", response_model=ReviewResponseModel)
-async def create_review(user_review: ReviewRequestModel):
-    user_exists = await run_in_threadpool(
-        lambda: User.select().where(User.id == user_review.user_id).first()
+async def create_review(
+    user_review: ReviewRequestModel, user: User = Depends(get_current_user)
+):
+    if Movie.select().where(Movie.id == user_review.movie_id).first() is None:
+        raise HTTPException(status_code=404, detail='Movie not found')
+    
+    user_review = UserReview.create(
+        user_id = user.id,
+        movie_id = user_review.movie_id,
+        review = user_review.review,
+        score = user_review.score
     )
 
-    if user_exists is None:
-        raise HTTPException(status_code=404, detail="User not found")
-
-    movie_exists = await run_in_threadpool(
-        lambda: Movie.select().where(Movie.id == user_review.movie_id).first()
-    )
-
-    if movie_exists is None:
-        raise HTTPException(status_code=404, detail="Movie not found")
-
-    created_review = await run_in_threadpool(
-        lambda: UserReview.create(
-            user_id=user_review.user_id,
-            movie_id=user_review.movie_id,
-            review=user_review.review,
-            score=user_review.score,
-        )
-    )
-
-    return created_review
+    return user_review
 
 
 @router.get("/", response_model=List[ReviewResponseModel])
@@ -59,11 +49,17 @@ async def get_review(review_id: int):
 
 
 @router.put("/{review_id}", response_model=ReviewResponseModel)
-async def update_review(review_id: int, review_request: ReviewRequestPutModel):
+async def update_review(
+    review_id: int, review_request: ReviewRequestPutModel,
+    user: User = Depends(get_current_user)
+):
     user_review = UserReview.select().where(UserReview.id == review_id).first()
 
     if user_review is None:
         raise HTTPException(status_code=404, detail="Review not found")
+    
+    if user_review.user_id != user.id:
+        raise HTTPException(status_code=404, detail="No eres el propiestario")
 
     user_review.review = review_request.review
     user_review.score = review_request.score
@@ -74,9 +70,12 @@ async def update_review(review_id: int, review_request: ReviewRequestPutModel):
 
 
 @router.delete("/{review_id}", response_model=ReviewResponseModel)
-async def delete_review(review_id: int):
+async def delete_review(review_id: int, user: User = Depends(get_current_user)):
     user_review = UserReview.select().where(UserReview.id == review_id).first()
 
+    if user_review.user_id != user.id:
+        raise HTTPException(status_code=404, detail="No eres el propiestario")
+    
     if user_review is None:
         raise HTTPException(status_code=404, detail="Review not found")
 

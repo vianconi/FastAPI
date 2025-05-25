@@ -15,7 +15,7 @@ from peewee import (
 load_dotenv()
 
 database = PostgresqlDatabase(
-    os.getenv("DB_NAME"),
+    database=os.getenv("DB_NAME"),
     user=os.getenv("DB_USER"),
     password=os.getenv("DB_PASSWORD"),
     host=os.getenv("DB_HOST"),
@@ -34,6 +34,13 @@ class User(Model):
     class Meta:
         database = database
         table_name = "users"
+
+    @classmethod
+    def authenticate(cls, username, password):
+        user = cls.select().where(User.username == username).first()
+
+        if user and user.password == cls.create_password(password):
+            return user
 
     @classmethod
     def create_password(cls, password):
